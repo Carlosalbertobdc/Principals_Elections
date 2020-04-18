@@ -1,0 +1,1060 @@
+use "C:\Users\Carlos Belchior\Desktop\Elections\Diretor.dta", clear 
+
+g homem=[tx_resp_q001=="A"]
+rename tx_resp_q002 idade
+rename tx_resp_q003 raça 
+rename tx_resp_q006 tipo_faculdade
+rename tx_resp_q008 tipo_curso
+rename tx_resp_q009 tipo_tema
+rename tx_resp_q019 tempo_diretor
+rename tx_resp_q021 election_2011
+
+drop if in_preenchimento==0
+
+keep id_escola homem idade raça tipo_faculdade tipo_curso tipo_tema tempo_diretor election_2011
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Diretor_Carac.dta", replace
+
+ 
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2013\TS_DIRETOR.csv", clear
+
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Diretor_Carac.dta", nogen keep(match)
+ 
+g estadual=[id_dependencia_adm==2]
+g urbano=[id_localizacao==1] 
+ 
+g homem_2013=[tx_resp_q001=="A"]
+rename tx_resp_q002 idade_2013
+rename tx_resp_q003 raça_2013  
+
+g tipo_faculdade_2013="A" if tx_resp_q006=="C"
+replace tipo_faculdade_2013="B" if tx_resp_q006=="D"
+replace tipo_faculdade_2013="C" if tx_resp_q006=="E"
+replace tipo_faculdade_2013="D" if tx_resp_q006=="B"
+replace tipo_faculdade_2013="E" if tx_resp_q006=="A"
+
+g tipo_curso_2013="A" if tx_resp_q007=="B"
+replace tipo_curso_2013="B" if tx_resp_q007=="C"
+replace tipo_curso_2013="C" if tx_resp_q007=="D"
+replace tipo_curso_2013="D" if tx_resp_q007=="A"
+
+g mesmo_diretor=1
+replace mesmo_diretor=0 if raça!=raça_2013 & raça!="*" & raça!="." & raça_2013!=""
+replace mesmo_diretor=1 if [raça=="B" & raça_2013=="C"] & [raça=="C" & raça_2013=="B"]
+replace mesmo_diretor=0 if homem!=homem_2013
+replace mesmo_diretor=0 if tipo_faculdade!=tipo_faculdade_2013 & tipo_faculdade!="*" & tipo_faculdade!="." & tipo_faculdade_2013!=""
+replace mesmo_diretor=0 if tipo_curso!=tipo_curso_2013 & tipo_curso!="*" & tipo_curso!="." & tipo_curso_2013!=""
+replace mesmo_diretor=0 if idade=="A" & [idade_2013=="C" | idade_2013=="D" | idade_2013=="E"]
+replace mesmo_diretor=0 if idade=="B" & [idade_2013=="A" | idade_2013=="D" | idade_2013=="E"]
+replace mesmo_diretor=0 if idade=="C" & [idade_2013=="A" | idade_2013=="B" | idade_2013=="E"]
+replace mesmo_diretor=0 if idade=="D" & [idade_2013=="A" | idade_2013=="B" | idade_2013=="C"]
+replace mesmo_diretor=0 if idade=="E" & [idade_2013=="A" | idade_2013=="B" | idade_2013=="C" | idade_2013=="D"]
+
+rename tx_resp_q017 tempo_diretor_2013
+
+g missing_1=[raça=="*" | raça=="."]
+g missing_2=[tipo_faculdade=="*" | tipo_faculdade=="."]
+g missing_3=[tipo_curso=="*" | tipo_curso=="."]
+g missing_4=[idade=="*" | idade=="."]
+g missing_5=[raça_2013==""]
+g missing_6=[tipo_faculdade_2013==""]
+g missing_7=[tipo_curso_2013==""]
+g missing_8=[idade_2013==""]
+
+g s_missing=missing_1+missing_2+missing_3+missing_4+missing_5+missing_6+missing_7+missing_8
+
+replace mesmo_diretor=. if s_missing>1 & mesmo_diretor==1
+
+g ano_entrada=2013 if tempo_diretor_2013=="A" & mesmo_diretor==0
+replace ano_entrada=2012 if tempo_diretor_2013=="B" & mesmo_diretor==0
+replace ano_entrada=2011 if tempo_diretor_2013=="B" & mesmo_diretor==1 & tempo_diretor=="A"
+
+g pg=[tx_resp_q008=="D" | tx_resp_q008=="E"]
+g exp_diretor=[tx_resp_q016!=tempo_diretor_2013]
+g educ_ext=[tx_resp_q019=="B"]
+
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Diretor_2013.dta", replace 
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2013\TURMAS.CSV", delimiter("|") clear 
+
+collapse (sum) num_matriculas, by(pk_cod_entidade)
+
+g ano_entrada=2013
+rename pk_cod_entidade id_escola 
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2013\num_matriculas.dta", replace 
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2012\TURMAS.CSV", delimiter("|") clear 
+
+collapse (sum) num_matriculas, by(pk_cod_entidade)
+
+g ano_entrada=2012
+rename pk_cod_entidade id_escola 
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2012\num_matriculas.dta", replace 
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2011\TURMAS.CSV", delimiter("|") clear 
+
+collapse (sum) num_matriculas, by(pk_cod_entidade)
+
+g ano_entrada=2011
+rename pk_cod_entidade id_escola 
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2011\num_matriculas.dta", replace 
+
+clear 
+
+forvalues year=2011/2013{
+append using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\\`year'\num_matriculas.dta", force
+}
+
+merge 1:1 id_escola ano_entrada using "C:\Users\Carlos Belchior\Desktop\Elections\Diretor_2013.dta", keep(match) nogen 
+
+g election=[tx_resp_q014=="B" | tx_resp_q014=="E"]
+
+g group_1=[id_uf==11 |id_uf==12 | id_uf==13 | id_uf==14 | id_uf==16 | id_uf==17]
+g group_2=[id_uf==15]
+g group_3=[id_uf==21]
+g group_4=[id_uf==22]
+g group_5=[id_uf==23]
+g group_6=[id_uf==24 | id_uf==25]
+g group_7=[id_uf==26]
+g group_8=[id_uf==27 | id_uf==28]
+g group_9=[id_uf==31]
+g group_10=[id_uf==32 | id_uf==33]
+g group_11=[id_uf==35]
+g group_12=[id_uf==41]
+g group_13=[id_uf==42]
+g group_14=[id_uf==43]
+g group_15=[id_uf==50 | id_uf==51 | id_uf==53]
+g group_16=[id_uf==52]
+g group_17=[id_uf==29]
+
+g coef=.
+g group=.
+g se=.
+g c=.
+
+local i=1
+forvalues x=1/17{
+if `x'!=15{
+foreach c in 150 200 250 300 350 400 450 500 550 600{
+rdrobust election num_matriculas if group_`x'==1, c(`c')
+replace group=`x' if _n==`i'
+replace c=`c' if _n==`i'
+replace coef=e(tau_cl) if _n==`i'
+replace se=e(se_tau_cl) if _n==`i'
+local i=`i'+1 
+} 
+}
+if `x'==15{
+replace group=`x' if _n==`i'
+replace c=150 if _n==`i'
+local i=`i'+1
+foreach c in 200 250 300 350 400 450 500 550 600{
+rdrobust election num_matriculas if group_`x'==1 & num_matriculas<=750, c(`c')
+replace group=`x' if _n==`i'
+replace c=`c' if _n==`i'
+replace coef=e(tau_cl) if _n==`i'
+replace se=e(se_tau_cl) if _n==`i'
+local i=`i'+1 
+}
+}
+}
+
+g pvalues=tprob(100000, coef/se)
+
+sort c pvalues
+
+
+g cutoff=150 if [group_1==1 | group_11==1 | group_7==1]
+replace cutoff=200 if [group_15==1 | group_12==1]
+replace cutoff=250 if [group_16==1 | group_2==1]
+replace cutoff=350 if group_4==1
+replace cutoff=400 if group_6==1
+replace cutoff=450 if group_8==1
+replace cutoff=500 if group_9==1 
+replace cutoff=550 if [group_3==1 | group_10==1 | group_14] 
+replace cutoff=600 if [group_17==1 | group_13==1 | group_5==1]
+
+
+g running=num_matriculas-cutoff
+rename tx_resp_q014 tipo_entrada
+
+
+keep id_escola id_uf num_matriculas ano_entrada election running cutoff tipo_entrada estadual urbano election_2011 
+
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Main_Data.dta", replace 
+
+forvalues year=2010/2012{
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\\`year'\MATRICULA_CO.CSV", delimiter("|") clear 
+
+g series=1 if fk_cod_etapa_ensino==1 | fk_cod_etapa_ensino==2
+replace series=fk_cod_etapa_ensino-2 if fk_cod_etapa_ensino>2 & fk_cod_etapa_ensino<=11
+replace series=fk_cod_etapa_ensino-13 if fk_cod_etapa_ensino>11 & fk_cod_etapa_ensino<=21 
+replace series=9 if fk_cod_etapa_ensino==41
+replace series=fk_cod_etapa_ensino-15 if fk_cod_etapa_ensino>=25 & fk_cod_etapa_ensino<=27
+replace series=12 if fk_cod_etapa_ensino==28 | fk_cod_etapa_ensino==29
+replace series=fk_cod_etapa_ensino-20 if fk_cod_etapa_ensino>=30 & fk_cod_etapa_ensino<=32 
+replace series=12 if fk_cod_etapa_ensino==33 | fk_cod_etapa_ensino==34 | fk_cod_etapa_ensino==37 | fk_cod_etapa_ensino==38 | fk_cod_etapa_ensino==39 | fk_cod_etapa_ensino==40
+replace series=5 if fk_cod_etapa_ensino==43 | fk_cod_etapa_ensino==46 | fk_cod_etapa_ensino==60
+replace series=9 if fk_cod_etapa_ensino==44 | fk_cod_etapa_ensino==47 | fk_cod_etapa_ensino==61
+replace series=12 if fk_cod_etapa_ensino==45 | fk_cod_etapa_ensino==48 | fk_cod_etapa_ensino==62 | fk_cod_etapa_ensino==63
+
+drop if series==1 | series==.
+
+g age_grade_distortion=num_idade-series-6
+replace age_grade_distortion=0 if age_grade_distortion<0
+
+g regular=[fk_cod_mod_ensino==1]
+
+rename id_possui_nec_especial special_needs
+
+g white=[tp_cor_raca==1]
+
+rename pk_cod_entidade id_escola
+
+collapse (mean) white regular age_grade_distortion special_needs, by(id_escola)
+
+g ano_entrada=`year'+1
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\\`year'\students_carac.dta", replace
+
+foreach uf in SUL SUDESTE NORTE NORDESTE{
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\\`year'\MATRICULA_`uf'.CSV", delimiter("|") clear 
+
+g series=1 if fk_cod_etapa_ensino==1 | fk_cod_etapa_ensino==2
+replace series=fk_cod_etapa_ensino-2 if fk_cod_etapa_ensino>2 & fk_cod_etapa_ensino<=11
+replace series=fk_cod_etapa_ensino-13 if fk_cod_etapa_ensino>11 & fk_cod_etapa_ensino<=21 
+replace series=9 if fk_cod_etapa_ensino==41
+replace series=fk_cod_etapa_ensino-15 if fk_cod_etapa_ensino>=25 & fk_cod_etapa_ensino<=27
+replace series=12 if fk_cod_etapa_ensino==28 | fk_cod_etapa_ensino==29
+replace series=fk_cod_etapa_ensino-20 if fk_cod_etapa_ensino>=30 & fk_cod_etapa_ensino<=32 
+replace series=12 if fk_cod_etapa_ensino==33 | fk_cod_etapa_ensino==34 | fk_cod_etapa_ensino==37 | fk_cod_etapa_ensino==38 | fk_cod_etapa_ensino==39 | fk_cod_etapa_ensino==40
+replace series=5 if fk_cod_etapa_ensino==43 | fk_cod_etapa_ensino==46 | fk_cod_etapa_ensino==60
+replace series=9 if fk_cod_etapa_ensino==44 | fk_cod_etapa_ensino==47 | fk_cod_etapa_ensino==61
+replace series=12 if fk_cod_etapa_ensino==45 | fk_cod_etapa_ensino==48 | fk_cod_etapa_ensino==62 | fk_cod_etapa_ensino==63
+
+drop if series==1 | series==.
+
+g age_grade_distortion=num_idade-series-6
+replace age_grade_distortion=0 if age_grade_distortion<0
+
+g regular=[fk_cod_mod_ensino==1]
+
+rename id_possui_nec_especial special_needs
+
+g white=[tp_cor_raca==1]
+
+rename pk_cod_entidade id_escola
+
+collapse (mean) white regular age_grade_distortion special_needs, by(id_escola)
+
+g ano_entrada=`year'+1
+
+append using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\\`year'\students_carac.dta", force
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\\`year'\students_carac.dta", replace
+}
+}
+
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2011\ESCOLAS.CSV", delimiter("|") clear 
+
+g ano_entrada=2011
+rename id_sala_diretoria sala_diretor
+rename id_sala_professor sala_professor
+rename id_biblioteca biblioteca
+rename num_salas_utilizadas num_salas_aula
+rename id_internet internet
+rename id_alimentacao alimentacao
+rename pk_cod_entidade id_escola 
+
+keep num_comp_alunos sala_diretor sala_professor biblioteca num_salas_aula internet alimentacao id_escola ano_entrada
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2011\school_carac.dta", replace 
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2012\ESCOLAS.CSV", delimiter("|") clear 
+
+g ano_entrada=2012
+rename id_sala_diretoria sala_diretor
+rename id_sala_professor sala_professor
+rename id_biblioteca biblioteca
+rename num_salas_utilizadas num_salas_aula
+rename id_internet internet
+rename id_alimentacao alimentacao
+rename pk_cod_entidade id_escola 
+
+keep num_comp_alunos sala_diretor sala_professor biblioteca num_salas_aula internet alimentacao id_escola ano_entrada 
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2012\school_carac.dta", replace 
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2013\ESCOLAS.CSV", delimiter("|") clear 
+
+g ano_entrada=2013
+rename id_sala_diretoria sala_diretor
+rename id_sala_professor sala_professor
+rename id_biblioteca biblioteca
+rename num_salas_utilizadas num_salas_aula
+rename id_internet internet
+rename id_alimentacao alimentacao
+rename pk_cod_entidade id_escola 
+
+keep num_comp_alunos sala_diretor sala_professor biblioteca num_salas_aula internet alimentacao id_escola ano_entrada 
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2013\school_carac.dta", replace 
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2007\TS_RESULTADO_ESCOLA.TXT", delimiter(space) clear 
+
+replace v11=v10 if v10!=.
+replace v11=v12 if v12!=.
+g serie=floor(mod(v11,100)/10)
+replace serie=5 if serie==4
+replace serie=9 if serie==8
+g nu_participantes=floor(v11/100)
+rename v1 id_escola
+rename v3 nu_media_port
+rename v5 nu_media_mat
+drop v*
+
+reshape wide nu_media_mat nu_media_port nu_participantes, i(id_escola) j(serie)
+
+g media_5ef_2007=(nu_media_port5+nu_media_mat5)/2
+g media_9ef_2007=(nu_media_port9+nu_media_mat9)/2
+
+sum media_5ef_2007
+local m_5ef_2007=r(mean)
+local sd_5ef_2007=r(sd)
+sum media_9ef_2007
+local m_9ef_2007=r(mean)
+local sd_9ef_2007=r(sd)
+
+sum nu_media_port5
+local m_port5=r(mean)
+local sd_port5=r(sd)
+sum nu_media_mat5
+local m_mat5=r(mean)
+local sd_mat5=r(sd)
+sum nu_media_port9
+local m_port9=r(mean)
+local sd_port9=r(sd)
+sum nu_media_mat5
+local m_mat9=r(mean)
+local sd_mat9=r(sd)
+
+
+
+g media_5ef_2007_ad=(media_5ef_2007-`m_5ef_2007')/`sd_5ef_2007'
+g media_9ef_2007_ad=(media_9ef_2007-`m_9ef_2007')/`sd_9ef_2007'
+g nu_media_port5_ad=(nu_media_port5-`m_port5')/`sd_port5'
+g nu_media_mat5_ad=(nu_media_mat5-`m_mat5')/`sd_mat5'
+g nu_media_port9_ad=(nu_media_port9-`m_port9')/`sd_port9'
+g nu_media_mat9_ad=(nu_media_mat9-`m_mat9')/`sd_mat9'
+
+g aux1=media_5ef_2007_ad*nu_participantes5/(nu_participantes5+nu_participantes9)
+g aux2=media_9ef_2007_ad*nu_participantes9/(nu_participantes5+nu_participantes9)
+
+egen media_2007=rowtotal(aux1 aux2)
+
+
+
+
+keep id_escola media_5ef_2007_ad media_9ef_2007_ad nu_media_port5_ad nu_media_mat5_ad nu_media_port9_ad nu_media_mat5_ad media_2007
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2007\Notas.dta", replace
+
+
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2009\TS_RESULTADO_ESCOLA.txt", delimiter(";") clear
+
+keep nu_media_mat nu_media_port pk_cod_entidade id_serie nu_participantes_port
+
+rename nu_participantes_port nu_participantes
+
+reshape wide nu_media_mat nu_media_port nu_participantes, i(pk_cod_entidade) j(id_serie)
+
+g media_5ef_2009=(nu_media_port5+nu_media_mat5)/2
+g media_9ef_2009=(nu_media_port9+nu_media_mat9)/2
+
+sum media_5ef_2009
+local m_5ef_2009=r(mean)
+local sd_5ef_2009=r(sd)
+sum media_9ef_2009
+local m_9ef_2009=r(mean)
+local sd_9ef_2009=r(sd)
+
+sum nu_media_port5
+local m_port5=r(mean)
+local sd_port5=r(sd)
+sum nu_media_mat5
+local m_mat5=r(mean)
+local sd_mat5=r(sd)
+sum nu_media_port9
+local m_port9=r(mean)
+local sd_port9=r(sd)
+sum nu_media_mat5
+local m_mat9=r(mean)
+local sd_mat9=r(sd)
+
+
+g media_5ef_2009_ad=(media_5ef_2009-`m_5ef_2009')/`sd_5ef_2009'
+g media_9ef_2009_ad=(media_9ef_2009-`m_9ef_2009')/`sd_9ef_2009'
+g nu_media_port5_ad=(nu_media_port5-`m_port5')/`sd_port5'
+g nu_media_mat5_ad=(nu_media_mat5-`m_mat5')/`sd_mat5'
+g nu_media_port9_ad=(nu_media_port9-`m_port9')/`sd_port9'
+g nu_media_mat9_ad=(nu_media_mat9-`m_mat9')/`sd_mat9'
+
+
+rename pk_cod_entidade id_escola
+
+g aux1=media_5ef_2009_ad*nu_participantes5/(nu_participantes5+nu_participantes9)
+g aux2=media_9ef_2009_ad*nu_participantes9/(nu_participantes5+nu_participantes9)
+
+egen media_2009=rowtotal(aux1 aux2)
+
+
+
+keep id_escola media_5ef_2009_ad media_9ef_2009_ad nu_media_port5_ad nu_media_mat5_ad nu_media_port9_ad nu_media_mat5_ad media_2009
+
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2009\Notas.dta", replace
+
+
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2011\TS_RESULTADO_ESCOLA.csv", delimiter(";") varnames(1) clear 
+
+destring media_lp media_mt, replace dpcomma
+
+keep media_mt media_lp id_serie id_escola nu_presentes
+
+reshape wide media_lp media_mt nu_presentes, i(id_escola) j(id_serie)
+
+g media_5ef_2011=(media_lp5+media_mt5)/2
+g media_9ef_2011=(media_lp9+media_mt9)/2
+
+sum media_5ef_2011
+local m_5ef_2011=r(mean)
+local sd_5ef_2011=r(sd)
+sum media_9ef_2011
+local m_9ef_2011=r(mean)
+local sd_9ef_2011=r(sd)
+
+sum media_lp5
+local m_port5=r(mean)
+local sd_port5=r(sd)
+sum media_mt5
+local m_mat5=r(mean)
+local sd_mat5=r(sd)
+sum media_lp9
+local m_port9=r(mean)
+local sd_port9=r(sd)
+sum media_mt9
+local m_mat9=r(mean)
+local sd_mat9=r(sd)
+
+
+g media_5ef_2011_ad=(media_5ef_2011-`m_5ef_2011')/`sd_5ef_2011'
+g media_9ef_2011_ad=(media_9ef_2011-`m_9ef_2011')/`sd_9ef_2011'
+g nu_media_port5_ad=(media_lp5-`m_port5')/`sd_port5'
+g nu_media_mat5_ad=(media_mt5-`m_mat5')/`sd_mat5'
+g nu_media_port9_ad=(media_lp9-`m_port9')/`sd_port9'
+g nu_media_mat9_ad=(media_mt9-`m_mat9')/`sd_mat9'
+
+g aux1=media_5ef_2011_ad*nu_presentes5/(nu_presentes5+nu_presentes9)
+g aux2=media_9ef_2011_ad*nu_presentes9/(nu_presentes5+nu_presentes9)
+
+egen media_2011=rowtotal(aux1 aux2)
+
+
+keep id_escola media_5ef_2011_ad media_9ef_2011_ad nu_media_port5_ad nu_media_mat5_ad nu_media_port9_ad nu_media_mat5_ad media_2011
+
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2011\Notas.dta", replace
+
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2013\TS_ESCOLA.csv", delimiter(comma) clear 
+
+g media_5ef_2013=(media_5ef_lp+media_5ef_mt)/2
+g media_9ef_2013=(media_9ef_lp+media_9ef_mt)/2
+
+sum media_5ef_2013
+local m_5ef_2013=r(mean)
+local sd_5ef_2013=r(sd)
+sum media_9ef_2013
+local m_9ef_2013=r(mean)
+local sd_9ef_2013=r(sd)
+
+sum media_5ef_lp
+local m_port5=r(mean)
+local sd_port5=r(sd)
+sum media_5ef_mt
+local m_mat5=r(mean)
+local sd_mat5=r(sd)
+sum media_9ef_lp
+local m_port9=r(mean)
+local sd_port9=r(sd)
+sum media_9ef_mt
+local m_mat9=r(mean)
+local sd_mat9=r(sd)
+
+
+g media_5ef_2013_ad=(media_5ef_2013-`m_5ef_2013')/`sd_5ef_2013'
+g media_9ef_2013_ad=(media_9ef_2013-`m_9ef_2013')/`sd_9ef_2013'
+g nu_media_port5_ad=(media_5ef_lp-`m_port5')/`sd_port5'
+g nu_media_mat5_ad=(media_5ef_mt-`m_mat5')/`sd_mat5'
+g nu_media_port9_ad=(media_9ef_lp-`m_port9')/`sd_port9'
+g nu_media_mat9_ad=(media_9ef_mt-`m_mat9')/`sd_mat9'
+
+
+g aux1=media_5ef_2013_ad*nu_presentes_5ef/(nu_presentes_5ef+nu_presentes_9ef)
+g aux2=media_9ef_2013_ad*nu_presentes_9/(nu_presentes_5ef+nu_presentes_9ef)
+
+egen media_2013=rowtotal(aux1 aux2)
+
+
+keep id_escola media_5ef_2013_ad media_9ef_2013_ad nu_media_port5_ad nu_media_mat5_ad nu_media_port9_ad nu_media_mat5_ad media_2013
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2013\Notas.dta", replace
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2015\TS_ESCOLA.csv", delimiter(comma) clear 
+
+g media_5ef_2015=(media_5ef_lp+media_5ef_mt)/2
+g media_9ef_2015=(media_9ef_lp+media_9ef_mt)/2
+
+sum media_5ef_2015
+local m_5ef_2015=r(mean)
+local sd_5ef_2015=r(sd)
+sum media_9ef_2015
+local m_9ef_2015=r(mean)
+local sd_9ef_2015=r(sd)
+
+sum media_5ef_lp
+local m_port5=r(mean)
+local sd_port5=r(sd)
+sum media_5ef_mt
+local m_mat5=r(mean)
+local sd_mat5=r(sd)
+sum media_9ef_lp
+local m_port9=r(mean)
+local sd_port9=r(sd)
+sum media_9ef_mt
+local m_mat9=r(mean)
+local sd_mat9=r(sd)
+
+
+g media_5ef_2015_ad=(media_5ef_2015-`m_5ef_2015')/`sd_5ef_2015'
+g media_9ef_2015_ad=(media_9ef_2015-`m_9ef_2015')/`sd_9ef_2015'
+g nu_media_port5_ad=(media_5ef_lp-`m_port5')/`sd_port5'
+g nu_media_mat5_ad=(media_5ef_mt-`m_mat5')/`sd_mat5'
+g nu_media_port9_ad=(media_9ef_lp-`m_port9')/`sd_port9'
+g nu_media_mat9_ad=(media_9ef_mt-`m_mat9')/`sd_mat9'
+
+
+g aux1=media_5ef_2015_ad*nu_presentes_5ef/(nu_presentes_5ef+nu_presentes_9ef)
+g aux2=media_9ef_2015_ad*nu_presentes_9/(nu_presentes_5ef+nu_presentes_9ef)
+
+egen media_2015=rowtotal(aux1 aux2)
+
+
+keep id_escola media_5ef_2015_ad media_9ef_2015_ad nu_media_port5_ad nu_media_mat5_ad nu_media_port9_ad nu_media_mat5_ad media_2015
+
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2015\Notas.dta", replace
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2017\TS_ESCOLA.csv", delimiter(comma) clear 
+
+g media_5ef_2017=(media_5ef_lp+media_5ef_mt)/2
+g media_9ef_2017=(media_9ef_lp+media_9ef_mt)/2
+
+sum media_5ef_2017
+local m_5ef_2017=r(mean)
+local sd_5ef_2017=r(sd)
+sum media_9ef_2017
+local m_9ef_2017=r(mean)
+local sd_9ef_2017=r(sd)
+
+sum media_5ef_lp
+local m_port5=r(mean)
+local sd_port5=r(sd)
+sum media_5ef_mt
+local m_mat5=r(mean)
+local sd_mat5=r(sd)
+sum media_9ef_lp
+local m_port9=r(mean)
+local sd_port9=r(sd)
+sum media_9ef_mt
+local m_mat9=r(mean)
+local sd_mat9=r(sd)
+
+
+g media_5ef_2017_ad=(media_5ef_2017-`m_5ef_2017')/`sd_5ef_2017'
+g media_9ef_2017_ad=(media_9ef_2017-`m_9ef_2017')/`sd_9ef_2017'
+g nu_media_port5_ad=(media_5ef_lp-`m_port5')/`sd_port5'
+g nu_media_mat5_ad=(media_5ef_mt-`m_mat5')/`sd_mat5'
+g nu_media_port9_ad=(media_9ef_lp-`m_port9')/`sd_port9'
+g nu_media_mat9_ad=(media_9ef_mt-`m_mat9')/`sd_mat9'
+
+
+g aux1=media_5ef_2017_ad*nu_presentes_5ef/(nu_presentes_5ef+nu_presentes_9ef)
+g aux2=media_9ef_2017_ad*nu_presentes_9/(nu_presentes_5ef+nu_presentes_9ef)
+
+egen media_2017=rowtotal(aux1 aux2)
+
+
+keep id_escola media_5ef_2017_ad media_9ef_2017_ad nu_media_port5_ad nu_media_mat5_ad nu_media_port9_ad nu_media_mat5_ad media_2017
+
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2017\Notas.dta", replace
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2011\TS_QUEST_DIRETOR.csv", clear delimiter(";")
+
+g homem_2011=[tx_resp_q001=="A"]
+rename tx_resp_q002 idade_2011
+g branco_2011=[tx_resp_q003=="A"]
+g pg_2011=[tx_resp_q009=="D" | tx_resp_q008=="C"]
+g pg_all_2011=[tx_resp_q009!="E"]
+rename tx_resp_q018 exp_diretor_2011
+g educ_ext_2011=[tx_resp_q011=="A"]
+
+keep id_escola homem_2011 idade_2011 branco_2011 pg_2011 pg_all_2011 exp_diretor_2011 educ_ext_2011
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2011\Diretor_carac.dta", replace   
+
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2013\TS_DIRETOR.csv", clear
+
+g homem_2013=[tx_resp_q001=="A"]
+rename tx_resp_q002 idade_2013
+g branco_2013=[tx_resp_q003=="A"]
+g pg_2013=[tx_resp_q008=="D" | tx_resp_q008=="E"]
+g pg_all_2013=[tx_resp_q008!="A"]
+rename tx_resp_q016 exp_diretor_2013
+g educ_ext_2013=[tx_resp_q019=="B"]
+
+keep id_escola homem_2013 idade_2013 branco_2013 pg_2013 pg_all_2013 exp_diretor_2013 educ_ext_2013
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2013\Diretor_carac.dta", replace   
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2015\TS_DIRETOR.csv", clear
+
+g homem_2015=[tx_resp_q001=="A"]
+rename tx_resp_q002 idade_2015
+g branco_2015=[tx_resp_q003=="A"]
+g pg_2015=[tx_resp_q008=="D" | tx_resp_q008=="E"]
+g pg_all_2015=[tx_resp_q008!="A"]
+rename tx_resp_q016 exp_diretor_2015
+g educ_ext_2015=[tx_resp_q019=="B"]
+
+keep id_escola homem_2015 idade_2015 branco_2015 pg_2015 pg_all_2015 exp_diretor_2015 educ_ext_2015
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2015\Diretor_carac.dta", replace   
+
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2017\TS_DIRETOR.csv", clear
+
+g homem_2017=[tx_resp_q001=="A"]
+rename tx_resp_q002 idade_2017
+g branco_2017=[tx_resp_q003=="A"]
+g pg_2017=[tx_resp_q008=="D" | tx_resp_q008=="E"]
+g pg_all_2017=[tx_resp_q008!="A"]
+rename tx_resp_q016 exp_diretor_2017
+g educ_ext_2017=[tx_resp_q019=="B"]
+
+keep id_escola homem_2017 idade_2017 branco_2017 pg_2017 pg_all_2017 exp_diretor_2017 educ_ext_2017
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2017\Diretor_carac.dta", replace   
+
+
+foreach year in 2013 2015 2017{
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\\`year'\TS_DIRETOR.csv", clear
+
+keep id_escola tx_resp_q041 tx_resp_q042 tx_resp_q043 tx_resp_q044 tx_resp_q077 
+
+g dropout_policy_`year'=[tx_resp_q041=="C" | tx_resp_q041=="D" | tx_resp_q041=="E"]
+g reprovation_policy_`year'=[tx_resp_q042=="C" | tx_resp_q042=="D" | tx_resp_q042=="E"]
+g tutoring_`year'=[tx_resp_q043=="B"]
+g improve_performance_`year'=[tx_resp_q044!="A"]
+g improve_performance_alt_`year'=[tx_resp_q044=="B"]
+replace improve_performance_alt_`year'=2 if tx_resp_q044=="C"
+replace improve_performance_alt_`year'=3 if tx_resp_q044=="D"
+g independence_`year'=[tx_resp_q077 =="B"]
+
+drop tx* 
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Management_Questions_`year'.dta", replace 
+}
+
+
+forvalues year=2007/2018{
+import delimited "C:\Users\Carlos Belchior\Desktop\Elections\Original data\\`year'\tx_rendimento_escolas_`year'.csv", delimiter(";") varnames(1) clear
+if [`year'!=2010 & `year'!=2014]{
+destring totalabandonoensfundamental abandonoanosiniciais1ºao5ºano abandonoanosfinais6ºao9ºano totalabandononoensmédio, replace dpcomma force 
+}
+if [`year'==2010]{
+destring totalabandonoensfundamental abandonoanosiniciais1ºao5ºano abandonoanosfinais6ºao9ºano totalabandononoensmédio, replace ignore(`"--"') dpcomma
+}
+if [`year'==2014]{
+destring totalabandonoensfundamental abandonoanosiniciais1ºao5ºano abandonoanosfinais6ºao9ºano totalabandononoensmédio, replace force 
+}
+rename códigodaescola id_escola
+rename totalabandonoensfundamental abandono_fundamental_`year'
+rename abandonoanosiniciais1ºao5ºano abandono_1a5_`year'
+rename abandonoanosfinais6ºao9ºano abandono_6a9_`year'
+rename totalabandononoensmédio abandono_medio_`year'
+
+keep id_escola abandono_fundamental_`year' abandono_1a5_`year' abandono_6a9_`year' abandono_medio_`year'
+
+duplicates drop id_escola, force 
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Original data\\`year'\Rendimento.dta", replace 
+}
+
+clear
+
+forvalues year=2011/2013{
+append using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\\`year'\school_carac.dta", force
+}
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Main_Data_Merged.dta", replace
+
+clear
+
+forvalues year=2010/2012{
+append using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\\`year'\students_carac.dta", force
+}
+ 
+merge 1:1 id_escola ano_entrada using "C:\Users\Carlos Belchior\Desktop\Elections\Main_Data_Merged.dta", keep(match) nogen
+merge 1:1 id_escola ano_entrada using "C:\Users\Carlos Belchior\Desktop\Elections\Main_Data.dta", keep(match) nogen 
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2007\Notas.dta", keep(match master) nogen 
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2009\Notas.dta", keep(match master) nogen 
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2011\Notas.dta", keep(match master) nogen 
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2013\Notas.dta", keep(match master) nogen 
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2015\Notas.dta", keep(match master) nogen
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2017\Notas.dta", keep(match master) nogen
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2007\Rendimento.dta", keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2008\Rendimento.dta", keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2009\Rendimento.dta", keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2010\Rendimento.dta", keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2011\Rendimento.dta", keep(match master) nogen force 
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2012\Rendimento.dta", keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2013\Rendimento.dta", keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2014\Rendimento.dta", keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2015\Rendimento.dta", keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2016\Rendimento.dta", keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2017\Rendimento.dta", keep(match master) nogen force 
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2018\Rendimento.dta", keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2011\Diretor_carac.dta", keep(match master) nogen force 
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2013\Diretor_carac.dta", keep(match master) nogen force 
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2015\Diretor_carac.dta", keep(match master) nogen force  
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Original data\2017\Diretor_carac.dta", keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Management_Questions_2013.dta" , keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Management_Questions_2015.dta" , keep(match master) nogen force
+merge 1:1 id_escola using "C:\Users\Carlos Belchior\Desktop\Elections\Management_Questions_2017.dta" , keep(match master) nogen force
+
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Main_Data_Merged.dta", replace 
+
+use "C:\Users\Carlos Belchior\Desktop\Elections\Main_Data_Merged.dta", clear
+
+foreach var in fundamental 1a5 6a9 medio{
+g abandono_`var'_t_1=.
+replace abandono_`var'_t_1=abandono_`var'_2009 if ano_entrada==2011
+replace abandono_`var'_t_1=abandono_`var'_2010 if ano_entrada==2012
+replace abandono_`var'_t_1=abandono_`var'_2011 if ano_entrada==2013
+g abandono_`var'_t1=.
+replace abandono_`var'_t1=abandono_`var'_2012 if ano_entrada==2011
+replace abandono_`var'_t1=abandono_`var'_2013 if ano_entrada==2012
+replace abandono_`var'_t1=abandono_`var'_2014 if ano_entrada==2013
+g abandono_`var'_t2=.
+replace abandono_`var'_t2=abandono_`var'_2013 if ano_entrada==2011
+replace abandono_`var'_t2=abandono_`var'_2014 if ano_entrada==2012
+replace abandono_`var'_t2=abandono_`var'_2015 if ano_entrada==2013
+g abandono_`var'_t3=.
+replace abandono_`var'_t3=abandono_`var'_2014 if ano_entrada==2011
+replace abandono_`var'_t3=abandono_`var'_2015 if ano_entrada==2012
+replace abandono_`var'_t3=abandono_`var'_2016 if ano_entrada==2013
+g abandono_`var'_t4=.
+replace abandono_`var'_t4=abandono_`var'_2015 if ano_entrada==2011
+replace abandono_`var'_t4=abandono_`var'_2016 if ano_entrada==2012
+replace abandono_`var'_t4=abandono_`var'_2017 if ano_entrada==2013
+g abandono_`var'_t5=.
+replace abandono_`var'_t5=abandono_`var'_2016 if ano_entrada==2011
+replace abandono_`var'_t5=abandono_`var'_2017 if ano_entrada==2012
+replace abandono_`var'_t5=abandono_`var'_2018 if ano_entrada==2013
+}
+
+
+
+foreach var in _ _5ef_ _9ef_{
+g scores`var't_2=media`var'2007 if ano_entrada==2011 
+replace scores`var't_2=media`var'2009 if ano_entrada==2013 | ano_entrada==2012 
+g scores`var't_1=media`var'2009 if ano_entrada==2011 
+replace scores`var't_1=media`var'2011 if ano_entrada==2013 | ano_entrada==2012 
+g scores`var't1=media`var'2013 if ano_entrada==2011 
+replace scores`var't1=media`var'2015 if ano_entrada==2013 | ano_entrada==2012 
+g scores`var't2=media`var'2015 if ano_entrada==2011 
+replace scores`var't2=media`var'2017 if ano_entrada==2013 | ano_entrada==2012 
+}
+
+
+
+foreach var in homem idade branco pg pg_all exp_diretor educ_ext{
+g `var'_t=`var'_2011 if ano_entrada==2011
+replace `var'_t=`var'_2013 if ano_entrada==2012 | ano_entrada==2013
+g `var'_t1=`var'_2013 if ano_entrada==2011
+replace `var'_t1=`var'_2015 if ano_entrada==2012 | ano_entrada==2013
+g `var'_t2=`var'_2015 if ano_entrada==2011
+replace `var'_t2=`var'_2017 if ano_entrada==2012 | ano_entrada==2013
+}
+
+foreach var in dropout_policy reprovation_policy tutoring improve_performance improve_performance_alt independence{
+g `var'_t1=`var'_2013 if ano_entrada==2011
+replace `var'_t1=`var'_2015 if ano_entrada==2012 | ano_entrada==2013
+g `var'_t2=`var'_2015 if ano_entrada==2011
+replace `var'_t2=`var'_2017 if ano_entrada==2012 | ano_entrada==2013
+}
+
+ 
+keep id_escola sala_diretor sala_professor biblioteca num_salas_aula internet alimentacao ano_entrada num_matriculas id_uf estadual urbano election cutoff running abandono_fundamental_t_1 abandono_fundamental_t1 abandono_fundamental_t2 abandono_fundamental_t3 abandono_fundamental_t4 abandono_fundamental_t5 abandono_1a5_t_1 abandono_1a5_t1 abandono_1a5_t2 abandono_1a5_t3 abandono_1a5_t4 abandono_1a5_t5 abandono_6a9_t_1 abandono_6a9_t1 abandono_6a9_t2 abandono_6a9_t3 abandono_6a9_t4 abandono_6a9_t5 abandono_medio_t_1 abandono_medio_t1 abandono_medio_t2 abandono_medio_t3 abandono_medio_t4 abandono_medio_t5 scores_t_2 scores_t_1 scores_t1 scores_t2 scores_5ef_t_2 scores_5ef_t_1 scores_5ef_t1 scores_5ef_t2 scores_9ef_t_2 scores_9ef_t_1 scores_9ef_t1 scores_9ef_t2 homem_t homem_t1 homem_t2 idade_t idade_t1 idade_t2 branco_t branco_t1 branco_t2 pg_t pg_t1 pg_t2 pg_all_t pg_all_t1 pg_all_t2 exp_diretor_t exp_diretor_t1 exp_diretor_t2 educ_ext_t educ_ext_t1 educ_ext_t2 dropout_policy_t1 reprovation_policy_t1 tutoring_t1 improve_performance_t1 improve_performance_alt_t1 dropout_policy_t2 reprovation_policy_t2 tutoring_t2 improve_performance_t2 improve_performance_alt_t2 white regular age_grade_distortion special_needs tipo_entrada independence_t1 independence_t2
+
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Main_Data_Merged.dta", replace 
+
+
+use  "C:\Users\Carlos Belchior\Desktop\Elections\Main_Data_Merged.dta", clear
+
+
+*Descriptive statistics
+foreach var in white regular age_grade_distortion special_needs num_salas_aula sala_diretor sala_professor biblioteca internet estadual urbano abandono_fundamental_t_1 scores_t_1{
+sum `var' if running<=0
+sum `var' if running>0
+}
+
+
+g running_alt=running if running<=-5 | running>=5
+replace running_alt=running_alt+5 if running_alt<0
+replace running_alt=running_alt-5 if running_alt>0
+
+g running_figure=floor((running+1)/2)
+egen election_rv=mean(election), by(running_figure)
+egen ord=seq(), by(running_figure)
+graph twoway (scatter election_rv running_figure if ord==1 & running_figure>=-60 & running_figure<=60, mc(gs10)) (lfit election_rv running_figure if ord==1 & running_figure>=-60 & running_figure<=0, lc(black)) (lfit election_rv running_figure if ord==1 & running_figure>0 & running_figure<=60, lc(black)), legend(off) xlabel(-60 "-120" -30 "-60" 0 "0" 30 "60" 60 "120", nogrid) ylabel(0.1(0.1)0.4, nogrid) xtitle("running variable") xline(0)
+graph export "C:\Users\Carlos Belchior\Desktop\Elections\Figures\Figure1a.png", as(png) replace
+
+reg election_rv running_figure c.running_figure#c.running_figure c.running_figure#c.running_figure#c.running_figure if running_figure<=0 & ord==1 & running_figure>=-60
+g predicted_poly=_b[_cons]+_b[running_figure]*running_figure+_b[c.running_figure#c.running_figure]*running_figure^2+_b[c.running_figure#c.running_figure#c.running_figure]*running_figure^3 
+reg election_rv running_figure c.running_figure#c.running_figure c.running_figure#c.running_figure#c.running_figure if running_figure>0 & ord==1 & running_figure<=60
+replace predicted_poly=_b[_cons]+_b[running_figure]*running_figure+_b[c.running_figure#c.running_figure]*running_figure^2+_b[c.running_figure#c.running_figure#c.running_figure]*running_figure^3 if running>0
+
+graph twoway (scatter election_rv running_figure if ord==1 & running_figure>=-60 & running_figure<=60, mc(gs10)) (line predicted_poly running_figure if ord==1 & running_figure>=-60 & running_figure<=0, lc(black) sort) (line predicted_poly running_figure if ord==1 & running_figure>0 & running_figure<=60, lc(black) sort), legend(off) xlabel(-60 "-120" -30 "-60" 0 "0" 30 "60" 60 "120", nogrid) ylabel(0.1(0.1)0.4, nogrid) xtitle("running variable") xline(0)
+graph export "C:\Users\Carlos Belchior\Desktop\Elections\Figures\Figure1b.png", as(png) replace
+
+g running_figure_fr=floor((running+1)/4)
+egen election_rv_fr=mean(election), by(running_figure_fr)
+reg election_rv_fr running_figure_fr c.running_figure_fr#c.running_figure_fr c.running_figure_fr#c.running_figure_fr#c.running_figure_fr if running_figure<0 & ord==1 
+g predicted_poly_fr=_b[_cons]+_b[running_figure_fr]*running_figure_fr+_b[c.running_figure_fr#c.running_figure_fr]*running_figure_fr^2+_b[c.running_figure_fr#c.running_figure_fr#c.running_figure_fr]*running_figure_fr^3 if running<=800
+reg election_rv_fr running_figure_fr c.running_figure_fr#c.running_figure_fr c.running_figure_fr#c.running_figure_fr#c.running_figure_fr if running>=0 & ord==1 & running<=800 
+replace predicted_poly_fr=_b[_cons]+_b[running_figure_fr]*running_figure_fr+_b[c.running_figure_fr#c.running_figure_fr]*running_figure_fr^2+_b[c.running_figure_fr#c.running_figure_fr#c.running_figure_fr]*running_figure_fr^3 if running>=0
+
+graph twoway (scatter election_rv_fr running_figure_fr if ord==1 & running_figure_fr>=-140 & running<=800, mc(gs10)) (line predicted_poly_fr running_figure_fr if ord==1 & running_figure_fr>=-140 & running<0, lc(black) sort) (line predicted_poly_fr running_figure_fr if ord==1 & running_figure>=0 & running<=800, lc(black) sort), legend(off) xlabel(-100 "-400" -50 "-200" 0 "0" 50 "200" 100 "400" 150 "600" 200 "800", nogrid) ylabel(0.1(0.1)0.5, nogrid) xtitle("running variable") xline(0)
+graph export "C:\Users\Carlos Belchior\Desktop\Elections\Figures\Figure1c.png", as(png) replace
+
+g running_figure_h=floor((running_alt+1)/2)
+egen election_rv_h=mean(election), by(running_figure_h)
+graph twoway (scatter election_rv_h running_figure_h if ord==1 & running_figure_h>=-60 & running_figure_h<=60, mc(gs10)) (lfit election_rv_h running_figure_h if ord==1 & running_figure_h>=-60 & running_figure_h<=0, lc(black)) (lfit election_rv_h running_figure_h if ord==1 & running_figure_h>0 & running_figure_h<=60, lc(black)), legend(off) xlabel(-60 "-120" -30 "-60" 0 "0" 30 "60" 60 "120", nogrid) ylabel(0.1(0.1)0.4, nogrid) xtitle("running variable") xline(0)
+graph export "C:\Users\Carlos Belchior\Desktop\Elections\Figures\Figure1d.png", as(png) replace
+
+g concurso_publico=[tipo_entrada=="A"]
+g indicacao=[tipo_entrada=="C" | tipo_entrada=="F"]
+g ps=[tipo_entrada=="D" | tipo_entrada=="E" |  tipo_entrada=="G"]
+
+foreach var in election indicacao concurso_publico ps{
+rdrobust `var' running, c(0) h(120) p(1)
+rdrobust `var' running, c(0) h(120) p(3)
+rdrobust `var' running if running<=800, c(0) p(3) h(571 800)
+rdrobust `var' running_alt, c(0) h(120) p(1)
+sum `var' if running<0 
+}
+
+rdrobust independence_t1 running, c(0) all h(120) b(214) p(1)
+rdrobust independence_t1 running, c(0) all p(3) h(120)
+rdrobust independence_t1 running if running<=800, c(0) h(571 800) all p(3)
+rdrobust independence_t1 running_alt, c(0) all  p(1) h(120) b(210)
+
+sum independence_t1 if running<0
+
+ 
+*Baseline discontinuities 
+set seed 7779
+foreach var in white regular age_grade_distortion special_needs num_salas_aula sala_diretor sala_professor biblioteca internet estadual urbano abandono_fundamental_t_1 scores_t_1{
+rdrobust `var' running, c(0) h(120)
+rdperm running `var'
+}
+
+rdperm running white regular age_grade_distortion special_needs
+rdperm running num_salas_aula sala_diretor sala_professor biblioteca internet estadual urbano 
+rdperm running abandono_fundamental_t_1 scores_t_1
+rdperm running white regular age_grade_distortion special_needs num_salas_aula sala_diretor sala_professor biblioteca internet estadual urbano abandono_fundamental_t_1 scores_t_1
+
+
+
+*McCrary test
+DCdensity running, breakpoint(0) generate(Xj Yj r0 fhat se_fhat) 
+graph export "C:\Users\Carlos Belchior\Desktop\Elections\Figures\Figure2.png", as(png) replace
+drop Xj Yj r0 fhat se_fhat
+
+*Canay and Bugni test
+rdcont running
+
+
+**Does different principals get elected?
+g director_previous_t=[exp_diretor_t=="A"]
+
+rdrobust homem_t running, c(0) h(120) b(260) fuzzy(election) all
+rdrobust pg_t running, c(0) h(120) fuzzy(election) all
+rdrobust director_previous_t running, c(0) h(120) b(234) fuzzy(election) all
+
+rdrobust homem_t running, c(0) h(120) b(260) fuzzy(election) all covs( white regular age_grade_distortion special_needs sala_diretor sala_professor biblioteca num_salas_aula internet estadual urbano )
+rdrobust pg_t running, c(0) h(120) fuzzy(election) all covs( white regular age_grade_distortion special_needs sala_diretor sala_professor biblioteca num_salas_aula internet estadual urbano )
+rdrobust director_previous_t running, c(0) h(120) b(234) fuzzy(election) all covs( white regular age_grade_distortion special_needs sala_diretor sala_professor biblioteca num_salas_aula internet estadual urbano )
+
+g previous_experience_t=[director_previous_t==0]
+egen previous_experience_rv=mean(previous_experience_t), by(running_figure)
+graph twoway (scatter previous_experience_rv running_figure if ord==1 & running_figure>=-60 & running_figure<=60, mc(gs10)) (lfit previous_experience_rv running_figure if ord==1 & running_figure>=-60 & running_figure<=0, lc(black)) (lfit previous_experience_rv running_figure if ord==1 & running_figure>0 & running_figure<=60, lc(black)), legend(off) xlabel(-60 "-120" -30 "-60" 0 "0" 30 "60" 60 "120", nogrid) xtitle("running variable") xline(0) ytitle("previous experience t+2")
+graph export "C:\Users\Carlos Belchior\Desktop\Elections\Presentation\Figures\Figure11.png", as(png) replace
+
+**Management improvement?
+rdrobust dropout_policy_t1 running, c(0) fuzzy(election) all h(120) b(222)
+rdrobust dropout_policy_t1 running, c(0) fuzzy(election) all covs( white regular age_grade_distortion) h(120) b(193)
+rdrobust dropout_policy_t2 running, c(0) fuzzy(election) all h(120) b(222)
+rdrobust dropout_policy_t2 running, c(0) fuzzy(election) all covs( white regular age_grade_distortion) h(120) b(193)
+
+
+rdrobust tutoring_t1 running, c(0) fuzzy(election) all h(120) b(222)
+rdrobust tutoring_t1 running, c(0) fuzzy(election) all covs( white regular age_grade_distortion) h(120) b(193)
+rdrobust tutoring_t2 running, c(0) fuzzy(election) all h(120) b(222)
+rdrobust tutoring_t2 running, c(0) fuzzy(election) all covs( white regular age_grade_distortion) h(120) b(193)
+
+
+sum dropout_policy_t1 dropout_policy_t2 tutoring_t1 tutoring_t2 if running<0
+
+*Reduced-form 
+rdrobust abandono_fundamental_t_1 running, c(0) h(120) all 
+g coef=e(tau_cl) if _n==1
+rdrobust abandono_fundamental_t1 running, c(0) h(120) all fuzzy(election)
+replace coef=e(tau_cl) if _n==2
+g se=e(se_tau_cl) if _n==1 | _n==2
+rdrobust abandono_fundamental_t2 running, c(0) h(120) all fuzzy(election)
+replace coef=e(tau_cl) if _n==3
+replace se=e(se_tau_cl) if _n==3
+rdrobust abandono_fundamental_t3 running, c(0) h(120) b(214) all fuzzy(election)
+replace coef=e(tau_cl) if _n==4
+replace se=e(se_tau_cl) if _n==4
+rdrobust abandono_fundamental_t4 running, c(0) h(120) b(193) all fuzzy(election)
+replace coef=e(tau_cl) if _n==5
+replace se=e(se_tau_cl) if _n==5
+rdrobust abandono_fundamental_t5 running, c(0) h(120) b(204) all fuzzy(election)
+replace coef=e(tau_cl) if _n==6
+replace se=e(se_tau_cl) if _n==6
+
+g n=_n
+g sup=coef+1.6*se
+g inf=coef-1.6*se
+
+graph twoway (rcap sup inf n, lw(medthick) lc(black)) (scatter coef n, ms(S) mc(gs10) msize(medlarge)) if _n<=6, legend(off) yline(0) xline(1.5, lc(black) lp(solid)) xtitle("years since treatment") xlabel(1 "t-1" 2 "t+1" 3 "t+2" 4 "t+3" 5 "t+4" 6 "t+5", nogrid) ylabel(, nogrid) text(2 2.1 "Principal's election", color(red))
+graph export "C:\Users\Carlos Belchior\Desktop\Elections\Figures\Figure3.png", as(png) replace
+
+
+egen abandono_fundamental_rv=mean(abandono_fundamental_t5), by(running_figure)
+graph twoway (scatter abandono_fundamental_rv running_figure if ord==1 & running_figure>=-60 & running_figure<=60, mc(gs10)) (lfit abandono_fundamental_rv running_figure if ord==1 & running_figure>=-60 & running_figure<=0, lc(black)) (lfit abandono_fundamental_rv running_figure if ord==1 & running_figure>0 & running_figure<=60, lc(black)), legend(off) xlabel(-60 "-120" -30 "-60" 0 "0" 30 "60" 60 "120", nogrid) ytitle("drop-out rates t+5") xtitle("running variable") xline(0)
+graph export "C:\Users\Carlos Belchior\Desktop\Elections\Presentation\Figures\Figure12.png", as(png) replace
+
+
+rdrobust abandono_medio_t_1 running, c(0)
+rdrobust abandono_medio_t1 running, c(0)
+rdrobust abandono_medio_t2 running, c(0)
+rdrobust abandono_medio_t3 running, c(0)
+rdrobust abandono_medio_t4 running, c(0)
+rdrobust abandono_medio_t5 running, c(0)
+
+foreach var in scores_5ef_t1 scores_5ef_t2 scores_9ef_t1 scores_9ef_t2{
+sum `var'
+local mean=r(mean)
+local sd=r(sd)
+replace `var'=(`var'-`mean')/`sd'
+}
+
+rdrobust scores_t_1 running, c(0)
+rdrobust scores_t1 running, c(0)
+rdrobust scores_t2 running, c(0)
+
+rdrobust scores_5ef_t_1 running, c(0)
+
+rdrobust scores_5ef_t1 running, c(0) h(120) b(207) all fuzzy(election)
+rdrobust scores_5ef_t1 running, c(0) h(120) b(207) all fuzzy(election) covs( white regular age_grade_distortion)
+
+rdrobust scores_9ef_t1 running, c(0) h(120) b(207) all fuzzy(election)
+rdrobust scores_9ef_t1 running, c(0) h(120) b(207) all fuzzy(election) covs( white regular age_grade_distortion)
+
+
+rdrobust scores_5ef_t2 running, c(0) h(120) b(175) all fuzzy(election)
+rdrobust scores_5ef_t2 running, c(0) h(120) b(175) all fuzzy(election) covs( white regular age_grade_distortion)
+
+
+rdrobust scores_9ef_t2 running, c(0) h(120) b(170) all fuzzy(election)
+rdrobust scores_9ef_t2 running, c(0) h(120) b(170) all fuzzy(election) covs( white regular age_grade_distortion)
+
+
+
+*Heterogeneity analysis 
+
+g election_sp=[tipo_entrada=="E"]
+g election_nosp=[tipo_entrada=="B"]
+
+rdrobust abandono_fundamental_t_1 running, c(0) h(120) all 
+rdrobust abandono_fundamental_t1 running, c(0) h(120) all fuzzy(election)
+rdrobust abandono_fundamental_t2 running, c(0) h(120) all fuzzy(election)
+rdrobust abandono_fundamental_t3 running, c(0) h(120) b(214) all fuzzy(election)
+rdrobust abandono_fundamental_t4 running, c(0) h(120) b(193) all fuzzy(election)
+rdrobust abandono_fundamental_t5 running, c(0) h(120) b(204) all fuzzy(election)
+
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Main_Data_Merged.dta", replace 
+
+import delimited "C:\Users\Carlos Belchior\Downloads\BASE_FORMACAO_1118.csv", delimiter(";") clear 
+
+rename cie_escola id_escola_sp
+keep if cargo_e==6200
+
+drop if formacao=="S/INFO"
+
+g especialization=-1*([formacao=="ENSINO MÌäDIO" | formacao=="LICENCIATURA"]-1)
+
+keep especialization id_escola_sp formacao id_interno
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Characteristics_SP.dta", replace  
+
+import delimited "C:\Users\Carlos Belchior\Downloads\BASE_AUSENCIAS_1118.csv", delimiter(";") clear 
+
+g absences_total=tt_dias_falta_medica+tt_dias_falta_just+tt_dias_falta_injust+tt_dias_falta_abonada+tt_dias_lic_premio+tt_dias_lic_gestante+tt_dias_lic_acid_trab+tt_dias_lic_inter_partic
+rename tt_dias_falta_injust absences_unjust
+
+keep id_interno absences_total absences_unjust
+
+collapse (sum) absences_total absences_unjust, by(id_interno) 
+
+merge 1:m id_interno using "C:\Users\Carlos Belchior\Desktop\Elections\Characteristics_SP.dta", keep(match using) nogen
+
+save "C:\Users\Carlos Belchior\Desktop\Elections\Characteristics_SP.dta", replace  
+
+
+use "C:\Users\Carlos Belchior\Desktop\Elections\Main_Data_Merged.dta", clear 
+
+g id_escola_sp=mod(id_escola,1000000)
+
+merge 1:1 id_escola_sp using "C:\Users\Carlos Belchior\Desktop\Elections\Main_Data_Merged.dta", nogen keep(match master)
+
+ rdrobust especialization running, c(0) h(120) b(204) all fuzzy(election)
+ rdrobust absences_total running, c(0) h(120) b(204) all fuzzy(election)
+ rdrobust absences_unjust running, c(0) h(120) b(204) all fuzzy(election)
